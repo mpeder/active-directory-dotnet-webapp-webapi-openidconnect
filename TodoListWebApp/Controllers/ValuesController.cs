@@ -38,8 +38,8 @@ namespace TodoListWebApp.Controllers
     [Authorize]
     public class ValuesController : Controller
     {
-        private string todoListResourceId = "https://damcoauthpoc.azurewebsites.net/api"; //ConfigurationManager.AppSettings["todo:TodoListResourceId"];
-        private string todoListBaseAddress = "https://damcoauthpoc.azurewebsites.net"; // ConfigurationManager.AppSettings["todo:TodoListBaseAddress"];
+        private string todoListResourceId = "https://damcodomain.onmicrosoft.com/apiappmulti"; //ConfigurationManager.AppSettings["todo:TodoListResourceId"];
+        private string todoListBaseAddress = "http://multitenantdamcoauthpoc.azurewebsites.net/"; // ConfigurationManager.AppSettings["todo:TodoListBaseAddress"];
         private const string TenantIdClaimType = "http://schemas.microsoft.com/identity/claims/tenantid";
         private static string clientId = ConfigurationManager.AppSettings["ida:ClientId"];
         private static string appKey = ConfigurationManager.AppSettings["ida:AppKey"];
@@ -65,6 +65,10 @@ namespace TodoListWebApp.Controllers
                 request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
                 HttpResponseMessage response = await client.SendAsync(request);
 
+                HttpRequestMessage request2 = new HttpRequestMessage(HttpMethod.Get, todoListBaseAddress + "/api/auth");
+                request2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
+                HttpResponseMessage response2 = await client.SendAsync(request2);
+
                 //
                 // Return the To Do List in the view.
                 //
@@ -74,6 +78,10 @@ namespace TodoListWebApp.Controllers
                     JsonSerializerSettings settings = new JsonSerializerSettings();
                     String responseString = await response.Content.ReadAsStringAsync();
 
+                    List<Dictionary<String, String>> responseElements2 = new List<Dictionary<String, String>>();
+                    JsonSerializerSettings settings2 = new JsonSerializerSettings();
+                    String responseString2 = await response2.Content.ReadAsStringAsync();
+
                     //responseElements = JsonConvert.DeserializeObject<List<Dictionary<String, String>>>(responseString, settings);
                     //foreach (Dictionary<String, String> responseElement in responseElements)
                     //{
@@ -82,7 +90,7 @@ namespace TodoListWebApp.Controllers
                     //    newItem.Owner = responseElement["Owner"];
                     //    itemList.Add(newItem);
                     //}
-                    ViewBag.Response = responseString;
+                    ViewBag.Response = responseString + responseString2;
                     return View();
                 }
                 else

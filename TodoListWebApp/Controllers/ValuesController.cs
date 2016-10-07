@@ -32,6 +32,8 @@ using System.Net.Http.Headers;
 using Newtonsoft.Json;
 using Microsoft.IdentityModel.Clients.ActiveDirectory;
 using Microsoft.Owin.Security;
+using Microsoft.Graph;
+using System.Text;
 
 namespace TodoListWebApp.Controllers
 {
@@ -43,12 +45,13 @@ namespace TodoListWebApp.Controllers
         private const string TenantIdClaimType = "http://schemas.microsoft.com/identity/claims/tenantid";
         private static string clientId = ConfigurationManager.AppSettings["ida:ClientId"];
         private static string appKey = ConfigurationManager.AppSettings["ida:AppKey"];
+        private string graphResourceId = "https://graph.microsoft.com/";
         //
         // GET: /TodoList/
         public async Task<ActionResult> Index()
         {
             AuthenticationResult result = null;
-           
+
 
             try
             {
@@ -69,6 +72,47 @@ namespace TodoListWebApp.Controllers
                 request2.Headers.Authorization = new AuthenticationHeaderValue("Bearer", result.AccessToken);
                 HttpResponseMessage response2 = await client.SendAsync(request2);
 
+                var graphResult = await authContext.AcquireTokenSilentAsync(graphResourceId, credential, new UserIdentifier(userObjectID, UserIdentifierType.UniqueId));
+
+                var graphServiceClient = new GraphServiceClient(
+                    new DelegateAuthenticationProvider(
+                    (requestMessage) =>
+                    {
+                        requestMessage.Headers.Authorization = new AuthenticationHeaderValue("bearer", graphResult.AccessToken);
+
+                        return Task.FromResult(0);
+                    }));
+
+                string graphinfo = string.Empty;
+
+                try
+                {
+                   
+                    var user= await graphServiceClient
+                         .Me
+                         .Request()
+                         .Select("displayName")
+                         .GetAsync();
+                    graphinfo += "Display name = " + user.DisplayName;
+
+                    //var usergroupsHttpReqMsg =  graphServiceClient.Me.GetMemberGroups(true).Request().GetHttpRequestMessage();
+                    //usergroupsHttpReqMsg.Headers.Authorization = new AuthenticationHeaderValue("bearer", graphResult.AccessToken);
+                    //usergroupsHttpReqMsg.Method = HttpMethod.Post;
+                    //usergroupsHttpReqMsg.Content = new StringContent("{\"securityEnabledOnly\":false}", Encoding.UTF8, "application/json");
+                    
+                    //var responseGroups = await graphServiceClient.HttpProvider.SendAsync(usergroupsHttpReqMsg);
+                    
+                    //var getMemberGroupsRequestBuilder = graphServiceClient.Me.GetMemberGroups();
+                    //var getMemberGroupsRequest = getMemberGroupsRequestBuilder.Request() as DirectoryObjectGetMemberGroupsRequest;
+                    //var respoGroups = await getMemberGroupsRequest.SendRequestAsync();
+                    //userGroups
+                    //graphServiceClient.Me.Request().;
+
+                }
+                catch (Exception exp)
+                {
+                    string ex = exp.ToString();
+                }
                 //
                 // Return the To Do List in the view.
                 //
@@ -103,7 +147,7 @@ namespace TodoListWebApp.Controllers
                     {
                         var todoTokens = authContext.TokenCache.ReadItems().Where(a => a.Resource == todoListResourceId);
                         foreach (TokenCacheItem tci in todoTokens)
-                            authContext.TokenCache.DeleteItem(tci);                            
+                            authContext.TokenCache.DeleteItem(tci);
 
                         ViewBag.ErrorMessage = "UnexpectedError";
                         TodoItem newItem = new TodoItem();
@@ -134,7 +178,7 @@ namespace TodoListWebApp.Controllers
                 //
                 TodoItem newItem = new TodoItem();
                 newItem.Title = "(Sign-in required to view to do list.)";
-              //  itemList.Add(newItem);
+                //  itemList.Add(newItem);
                 ViewBag.ErrorMessage = "AuthorizationRequired";
                 return View();
             }
@@ -147,6 +191,6 @@ namespace TodoListWebApp.Controllers
 
         }
 
-     
-	}
+
+    }
 }
